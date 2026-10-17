@@ -1,0 +1,123 @@
+name: base-apk
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: base-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone base app (GZDoom-Android-2026)
+        run: git clone --depth 1 --recurse-submodules https://github.com/manuelsiuro/GZDoom-Android-2026 base
+
+      - name: Cek file overlay lengkap dan tidak usang
+        run: |
+          missing=0
+          for f in \
+            doom/src/main/java/com/msa/freedoom/ui/MainScreen.kt \
+            doom/src/main/java/com/msa/freedoom/ui/instances/InstancesScreen.kt \
+            doom/src/main/java/com/msa/freedoom/ui/controlseditor/ControlsScreen.kt \
+            doom/src/main/java/com/msa/freedoom/ui/fx/SlimeBounce.kt \
+            doom/src/main/java/com/msa/freedoom/ui/changelog/ChangelogScreen.kt \
+            doom/src/main/java/org/libsdl/app/SDLOpenTouch.java \
+            doom/src/main/java/com/msa/freedoom/Game.kt; do
+            if [ ! -f "overlay/$f" ]; then
+              echo "::error::overlay/$f tidak ada di repo (belum di-push?)"
+              missing=1
+            fi
+          done
+          [ "$missing" = 0 ] || exit 1
+          if grep -q addTouchToggle overlay/doom/src/main/java/com/msa/freedoom/Game.kt; then
+            echo "::error::overlay Game.kt masih versi lama (ada tombol mata)"
+            exit 1
+          fi
+          echo "Commit yang dibuild: ${{ github.sha }}"
+
+      - name: Terapkan overlay perbaikan
+        run: |
+          if [ ! -d overlay ]; then
+            echo "::error::Folder overlay/ tidak ada di repo. Pastikan folder overlay ikut di-commit dan di-push dari zip."
+            echo "Isi root repo saat ini:"
+            ls -la
+            exit 1
+          fi
+          cp -r overlay/. base/
+          echo "overlay diterapkan:"
+          find overlay -type f
+
+      - name: Sertakan changelog ke dalam aplikasi
+        run: |
+          mkdir -p base/doom/src/main/assets
+          if [ -f CHANGELOG.md ]; then
+            cp CHANGELOG.md base/doom/src/main/assets/changelog.md
+            echo "changelog disertakan"
+          else
+            echo "CHANGELOG.md tidak ada di repo, aplikasi akan menampilkan pesan kosong"
+          fi
+
+      - name: Beri penanda versi build (lihat di Settings > About)
+        run: |
+          VER=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
+          [ -n "$VER" ] || VER=dev
+          RUN=${{ github.run_number }}
+          sed -i "s/versionCode = 50/versionCode = $((1000 + RUN))/" base/doom/build.gradle.kts
+          sed -i "s/versionName = \"0.50.0\"/versionName = \"${VER}-r${RUN}\"/" base/doom/build.gradle.kts
+          echo "Versi build: ${VER}-r${RUN}"
+          grep -n "versionCode\|versionName" base/doom/build.gradle.kts
+          grep -q "versionName = \"${VER}-r${RUN}\"" base/doom/build.gradle.kts || { echo "::error::penanda versi gagal dipasang"; exit 1; }
+
+      - name: Buang file widget lama (fitur dihapus)
+        run: |
+          rm -f base/doom/src/main/java/com/msa/freedoom/ui/instances/InstanceWidgetProvider.kt
+          rm -f base/doom/src/main/res/layout/widget_instance.xml
+          rm -f base/doom/src/main/res/drawable/widget_bg.xml
+          rm -f base/doom/src/main/res/xml/instance_widget_info.xml
+
+      - name: Setup Java 17 (dengan cache Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: base/**/*.gradle*
+
+      - name: Pasang keystore tetap (agar update tidak menghapus data)
+        env:
+          KS_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            mkdir -p ~/.android
+            echo "$KS_B64" | base64 -d > ~/.android/debug.keystore
+            echo "keystore tetap dipasang"
+          else
+            echo "secret DEBUG_KEYSTORE_B64 belum diisi, memakai keystore default"
+          fi
+
+      - name: Build APK
+        working-directory: base
+        run: |
+          chmod +x gradlew
+          sed -i '/org.gradle.java.home/d' gradle.properties
+          ./gradlew :doom:assembleDebug --no-daemon --stacktrace
+
+      - name: Kumpulkan APK
+        run: |
+          mkdir -p out
+          find base -path '*/outputs/apk/*' -name '*.apk' -exec cp {} out/ \;
+          ls -la out
+          test -n "$(ls out/*.apk 2>/dev/null)" || (echo "APK tidak ditemukan" && exit 1)
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-apk
+          path: out/*.apk
+          if-no-files-found: error
+          
