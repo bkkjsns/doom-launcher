@@ -1,0 +1,11 @@
+[package]
+name = "launcher-jni"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+doom-core = { path = "../doom-core" }
+jni = "0.21"

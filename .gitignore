@@ -1,0 +1,111 @@
+# Roxum and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Language Server Protocol (LSP) cache directories
+.ccls-cache/
+jdt.ls-java-project
+.clangd/
+.cache/
+compile_commands.json
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+pyrightconfig.json
+*.jdt.ls/
+.settings/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.venv/
+venv/
+env/
+ENV/
+
+# Flutter / Dart
+.dart_tool/
+.packages
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Java / Android
+bin/
+.classpath
+.project
+.factorypath
+*.class
+.gradle/
+local.properties
+.externalNativeBuild/
+.cxx/
+
+# Node / TypeScript
+tsconfig.tsbuildinfo
+.eslintcache
+*.tsbuildinfo
+
+# Build outputs
+build/
+dist/
+out/
+target/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.app
+*.apk
+*.aab
+*.ipa
+*.so.*
+*.dylib.*
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.db
+
+# Environment files
+.env
+.env.*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Coverage reports
+coverage/
+.coverage
+htmlcov/
+
+# Package files
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# OS files
+*.iml
+Thumbs.db
+Desktop.ini
+.Spotlight-V100
+.Trashes
+
+# Shell configuration
+.bashrc
